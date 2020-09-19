@@ -22,7 +22,7 @@ public class TestEasyTime{
 		System.out.println("2015"+EasyTime.getNowTime("-MM-dd"));
 		System.out.println(EasyTime.getBeforeTime("yyyyMMdd",1));
 		System.out.println(EasyTime.getBeforeMonth("yyyyMMdd",2));
-		File file=new File("./testfiles/RTN-0084031817-20060706094647750.ack.xml");
+		File file=esdk.file.getFileByResource("/testfiles/test.yml");
 		/* System.out.println(file.lastModified()); */
 		file.setLastModified(Long.valueOf("1152234203000"));
 		esdk.tool.aeic(EasyTime.getTime("yyyy-MM-dd HH:mm:ss",file.lastModified()),"2006-07-07 09:03:2?");

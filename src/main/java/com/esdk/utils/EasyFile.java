@@ -16,6 +16,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.RandomAccessFile;
 import java.io.Reader;
+import java.net.URL;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.text.DateFormat;
@@ -1139,6 +1140,14 @@ public class EasyFile{
 	
 	public static boolean contentEquals(File file1,File file2) {
 		return FileUtil.contentEquals(file1,file2);
+	}
+
+	/**从资源路径中获取文件*/
+	public static File getFileByResource(String filePath){
+		if(filePath.startsWith("/"))
+			filePath=filePath.substring(1);
+		URL url=Thread.currentThread().getContextClassLoader().getResource(filePath);
+		return url!=null? new File(url.getPath()):null;
 	}
 	
   private static void test()throws Exception{
