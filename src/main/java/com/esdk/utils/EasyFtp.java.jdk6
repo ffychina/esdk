@@ -1,0 +1,354 @@
+package com.aha.sdk.common.utils;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+
+import sun.net.TelnetInputStream;
+import sun.net.TelnetOutputStream;
+import sun.net.ftp.FtpClient;
+
+public class EasyFtp extends sun.net.ftp.FtpClient{
+	String DownloadPath=null;
+
+	public EasyFtp(String ftpserver) throws IOException{
+		super(ftpserver);
+	}
+
+	public static EasyFtp createEasyFtp(String url) throws IOException{
+		// String url="ftp://amway:pgledi4aw@202.96.100.185:2121/isd14/FromAw/";
+		String user=RegexFacility.findSubString(url,"//[^:]+:"); // TODO
+																															// 这种方式已经太out了，应使用findsub
+		if(!EasyStr.isBlank(user))
+			user=user.substring(2,user.length()-1);
+		String pwd=RegexFacility.findSubString(url,":{1}[^:@]*@{1}");
+		if(!EasyStr.isBlank(pwd))
+			pwd=pwd.substring(1,pwd.length()-1);
+		String ftpsrv=RegexFacility.findSubString(url,"@{1}[^:/]*");
+		if(!EasyStr.isBlank(ftpsrv))
+			ftpsrv=ftpsrv.substring(1,ftpsrv.length());
+		String srvport=RegexFacility.findSubString(url,":{1}[0-9]+");
+		int port=EasyStr.isBlank(srvport)?FtpClient.FTP_PORT:Integer.valueOf(srvport.substring(1));
+		String path=RegexFacility.findSubString(RegexFacility.findSubString(url,"@.*"),"/{1}.*$");
+		/*
+		 * System.out.println(ftpsrv); System.out.println(port);
+		 * System.out.println(user); System.out.println(pwd);
+		 * System.out.println(path);
+		 */
+		EasyFtp result=new EasyFtp(ftpsrv,port,user,pwd);
+		if(!EasyStr.isBlank(path))
+			result.cd(path);
+		return result;
+	}
+
+	public EasyFtp(String ftpserver,int port,String user,String password) throws IOException{
+		super(ftpserver,port);
+		this.login(user,password);
+		this.binary();
+	}
+
+	public EasyFtp(String ftpserver,String user,String password) throws IOException{
+		super(ftpserver);
+		this.login(user,password);
+		this.binary();
+	}
+
+	public void setDownloadPath(String path){
+		DownloadPath=EasyFile.getDirPath(path);
+		EasyFile.CreateFolder(path,false);
+	}
+
+	public String[] listfilename() throws IOException{
+		return listfilename("*",null);
+	}
+
+	/*
+	 * public String[] listfilename(String key,String excludekey) throws
+	 * IOException{ DataInputStream dis = new DataInputStream(this.nameList("*"));
+	 * String filename = ""; List<String> list = new ArrayList<String>(); while
+	 * ((filename = dis.readLine()) != null) { if (filename.indexOf(key)
+	 * >=0||key.equals("*")) { list.add(filename); } } return list.toArray(new
+	 * String[0]); }
+	 */
+	public String[] listfilename(String key,String excludekey) throws IOException{
+		int size;
+		byte[] bytes=new byte[10240];
+		TelnetInputStream list=null;
+		if(key.indexOf("*")<0)
+			key="*".concat(key).concat("*");
+		try{
+			list=this.nameList(key);
+		}catch(IOException ex){
+			return new String[0];
+		}
+		ByteArrayOutputStream bs=new ByteArrayOutputStream();
+		while((size=list.read(bytes))>0){
+			bs.write(bytes,0,size);
+		}
+		byte[] b=bs.toByteArray();
+		String[] files=new TString(new String(b)).split();
+		bs.close();
+		list.close();
+		ArrayList al=new ArrayList(files.length);
+		for(int i=0;i<files.length;i++){
+			if(files[i].length()>0){
+				if(!EasyStr.isBlank(excludekey)){
+					if(!EasyStr.existOf(files[i],excludekey)){
+						al.add(files[i]);
+					}
+				}else{
+					al.add(files[i]);
+				}
+			}
+		}
+		return (String[])al.toArray(new String[0]);
+	}
+
+	public String LoadFromFtp(String ftpfilename) throws IOException{
+		int size;
+		byte[] bytes=new byte[10240];
+		if(!isExist(ftpfilename))
+			return "";
+		TelnetInputStream is=this.get(ftpfilename);
+
+		ByteArrayOutputStream os=new ByteArrayOutputStream();
+		while((size=is.read(bytes))>0){
+			os.write(bytes,0,size);
+		}
+		is.close();
+		os.close();
+		return new String(os.toByteArray());
+	}
+
+	protected boolean isExist(String ftpfilename){
+		try{
+			boolean result=false;
+			String[] filename=this.listfilename(ftpfilename,"");
+			if(filename.length==1){
+				result=true;
+			}
+			return result;
+		}catch(IOException ex){
+			return false;
+		}
+	}
+
+	public boolean move(String ftpfilename,String destfilename) throws IOException{
+		boolean result=DownloadFile(ftpfilename,DownloadPath.concat(destfilename));
+		if(result)
+			delete(ftpfilename);
+		return result;
+	}
+
+	public boolean delete(String[] filenames) throws IOException{
+		for(int i=0;i<filenames.length;i++){
+			delete(filenames[i]);
+		}
+		return true;
+	}
+
+	public void delete(String ftpfilename) throws IOException{
+		sendServer("DELE "+ftpfilename+"\r\n");
+		this.readServerResponse();// must invoke readServerResponse(), otherwise
+															// will throw exception: connection reset
+		/* System.out.println(this.getResponseString()); */
+	}
+
+	public boolean DownloadFile(String ftpFileName,String localFileName) throws IOException{
+		int size;
+		byte[] bytes=new byte[10240];
+		TelnetInputStream is=this.get(ftpFileName);
+		FileOutputStream os=new FileOutputStream(localFileName);
+		is.binaryMode=true;
+		while((size=is.read(bytes))>0){
+			os.write(bytes,0,size);
+		}
+		is.close();
+		os.close();
+		return true;
+	}
+
+	public boolean UploadFile(String ftpfilename,String filename) throws IOException{
+		int size;
+		byte[] bytes=new byte[10240];
+		FileInputStream is=new FileInputStream(filename);
+		TelnetOutputStream os=this.put(ftpfilename);
+		while((size=is.read(bytes))>0){
+			os.write(bytes,0,size);
+		}
+		os.flush();
+		is.close();
+		os.close();
+		return true;
+	}
+
+	public boolean UploadFileGroup(String[] files) throws IOException{
+		File[] filelist=new File[files.length];
+		for(int i=0;i<files.length;i++){
+			filelist[i]=new File(files[i]);
+		}
+		return UploadFileGroup(filelist);
+	}
+
+	public boolean UploadFileGroup(File[] filelist) throws IOException{
+		boolean result=true;
+		for(int i=0;i<filelist.length;i++){
+			if(filelist[i].exists()&&filelist[i].canRead()&&!filelist[i].isDirectory()){
+				if(!UploadFile(filelist[i].getName(),filelist[i].getAbsolutePath()))
+					result=false;
+			}else
+				result=false;
+		}
+		return result;
+	}
+
+	public boolean move(String[] files) throws IOException{
+		boolean result=true;
+		for(int i=0;i<files.length;i++){
+			if(!move(files[i],files[i]))
+				result=false;
+		}
+		return result;
+	}
+
+	public boolean DownloadFileGroup(String[] files) throws Exception{
+		boolean result=true;
+		for(int i=0;i<files.length;i++){
+			if(!DownloadFile(files[i],DownloadPath.concat(files[i])))
+				result=false;
+		}
+		return result;
+	}
+
+	@Override
+	protected void finalize() throws IOException{
+		super.finalize();
+		this.closeServer();
+	}
+
+	public static boolean UploadToFtp(String ftpserver,String ftpuser,String ftppassword,String path,String[] files) throws Exception{
+		File[] filelist=new File[files.length];
+		for(int i=0;i<files.length;i++){
+			filelist[i]=new File(files[i]);
+		}
+		return UploadToFtp(ftpserver,ftpuser,ftppassword,path,filelist);
+	}
+
+	public static boolean UploadToFtp(String ftpserver,String ftpuser,String ftppassword,String path,File[] filelist) throws Exception{
+		for(int i=0;i<filelist.length;i++){
+			if(filelist[i].isDirectory()||!filelist[i].canRead()||!filelist[i].exists())
+				return false;
+		}
+		FtpClient ftpClient=new FtpClient(ftpserver);
+		ftpClient.login(ftpuser,ftppassword);
+		ftpClient.cd(path);
+		ftpClient.binary();
+		byte[] bytes=new byte[10240];
+		int size;
+		for(int i=0;i<filelist.length;i++){
+			FileInputStream is=new FileInputStream(filelist[i]);
+			TelnetOutputStream os=ftpClient.put(filelist[i].getName());
+			while((size=is.read(bytes))>0){
+				os.write(bytes,0,size);
+			}
+			os.flush();
+			is.close();
+			os.close();
+		}
+		ftpClient.closeServer();// 退出FTP服务器
+		return true;
+	}
+
+	public static boolean DownLoadFromFtp(String ftpserver,String ftpuser,String ftppassword,String ftppath,String savepath,String key,
+			String excludekey) throws Exception{
+		if(!EasyFile.CreateFolder(savepath,false))
+			return false;
+		FtpClient ftpClient=new FtpClient(ftpserver);
+		ftpClient.login(ftpuser,ftppassword);
+		ftpClient.cd(ftppath);
+		ftpClient.binary();
+		int size;
+		byte[] bytes=new byte[10240];
+		TelnetInputStream list=null;
+		try{
+			list=ftpClient.nameList(key);
+		}catch(FileNotFoundException ex){
+			return false;
+		}
+		ByteArrayOutputStream bs=new ByteArrayOutputStream();
+		while((size=list.read(bytes))>0){
+			bs.write(bytes,0,size);
+		}
+		byte[] b=bs.toByteArray();
+		String[] files=EasyStr.StrToArr(new String(b),"\r\n");
+		bs.close();
+		list.close();
+
+		ArrayList al=new ArrayList(files.length);
+		for(int i=0;i<files.length;i++){
+			if(files[i].length()>0){
+				if(excludekey.length()>0){
+					if(!EasyStr.existOf(files[i],excludekey)){
+						al.add(new File(EasyFile.getDirPath(savepath)+files[i]));
+					}
+				}else{
+					al.add(new File(EasyFile.getDirPath(savepath)+files[i]));
+				}
+			}
+		}
+		File[] filelist=new File[al.size()];
+		for(int i=0;i<filelist.length;i++){
+			filelist[i]=(File)al.get(i);
+		}
+
+		for(int i=0;i<filelist.length;i++){
+			FileOutputStream os=new FileOutputStream(filelist[i]);
+			TelnetInputStream is=ftpClient.get(filelist[i].getName());
+			while((size=is.read(bytes))>0){
+				os.write(bytes,0,size);
+			}
+			is.close();
+			os.close();
+		}
+		ftpClient.closeServer();
+		return true;
+	}
+
+	public static void main(String[] args) throws Exception{
+		try{
+			EasyFtp aa=EasyFtp.createEasyFtp("ftp://acq_test:jgfr467@172.26.4.60");
+			aa.cd("MetaGet");
+			aa.setDownloadPath("c:/");
+			aa.DownloadFileGroup(aa.listfilename());
+			System.exit(0);
+
+			// EasyFtp s=EasyFtp.createEasyFtp("ftp://rb:rb*best@202.96.100.209:21/");
+			// s.closeServer();
+			EasyFtp s=EasyFtp.createEasyFtp("ftp://amway:pgledi4aw;@ftp.amway.com.cn:2121/isd14/FromAw/");
+			System.out.println(EasyStr.ArrToStr(s.listfilename()));
+			s.setDownloadPath("c:/b2b/data/aw/");
+			/*
+			 * s.DownloadFileGroup(s.listfilename()); s.delete(s.listfilename());
+			 */
+			s.move(s.listfilename());
+			System.out.println(EasyStr.ArrToStr(s.listfilename()));
+			s.closeServer();
+			System.exit(0);
+			EasyFtp client=new EasyFtp("61.28.18.68","rb","rb*best");
+			// client.cd("dapnso");
+			// String[] files=client.ListFileName("csv","err");
+			// client.setDownloadPath("f:/test");
+			// client.DownloadFileGroup(files);
+			System.out.println(client.LoadFromFtp("红牛要货申请汇总表20050527.csv"));
+			// client.UploadFileGroup(new String[]{"f:/result.xml","f:/test.xml"});
+			client.closeServer();
+		}catch(IOException ex){
+			ex.printStackTrace();
+		}
+	}
+
+}

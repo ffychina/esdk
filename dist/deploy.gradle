@@ -1,0 +1,18 @@
+task srcJar(dependsOn:classes){
+	group '*deploy'
+	description '生成sdk.jar带源码'
+	doLast {
+		def buildDir=project.file('build/classes/java/main');
+		def jarFile=project.file('build/libs/'+rootProject.name+'.jar');
+		def resourcesDir=project.file('build/resources/main');
+		def srcDir=project.file('src/main/java');
+		ant.copy(todir:buildDir, preservelastmodified: "true") {
+			fileset(dir:resourcesDir,includes:"**",excludes:"*.tmp")
+		}
+	  ant.jar(basedir:buildDir, jarfile:jarFile.getPath()) {
+			fileset(dir:srcDir, includes: "**")
+			fileset(dir:resourcesDir,includes:"**")
+	  }
+	 // project.file('../lib/aha/${rootProject.name}.jar').bytes=jarFile.bytes;
+	}
+}
