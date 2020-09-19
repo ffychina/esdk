@@ -210,7 +210,7 @@ public class EasyArray{
 	}
 	
 	/**强制指定输出的数组类型，把数组或对象合并成数组返回，如果全部参数都是数组，应使用concat()*/
-	public static <T>T[] concat(Class<T> cls,Object[] args){
+	public static <T>T[] concat(Class<T> cls,Object... args){
 		ArrayList result=null;
 		if(!esdk.array.isBlank(args)) { 
 			result=toList(args);
