@@ -27,9 +27,9 @@ public class RowUtils{
   
 	/**手工填入数据库字段的默认值*/
 	public static <PR extends ParentRow> PR fillDefaultVals(PR pr){
-		Object[] defs=(Object[])esdk.reflect.getFieldValue(pr.getMetaData(),"ColumnDefs");
+		Object[] defs=(Object[])esdk.reflect.getFieldValueBySafe(pr.getMetaData(),"ColumnDefs");
 		String[] fields=(String[])esdk.reflect.getFieldValue(pr.getMetaData(),"FieldNames");
-		for(int i=0;i<defs.length;i++) {
+		for(int i=0;defs!=null&&i<defs.length;i++) {
 			if(defs[i]!=null)
 				pr.record.put(fields[i],defs[i]);
 		}

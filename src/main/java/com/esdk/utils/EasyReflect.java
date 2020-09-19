@@ -48,6 +48,17 @@ public class EasyReflect{
 		throw new NoSuchFieldException("No such field: "+clazz.getName()+'.'+propertyName);
 	}
 
+	public static Object getFieldValueBySafe(Object instance,String fieldName) {
+		if(instance==null)return null;
+		try{
+			Field field=esdk.array.filterFirst(instance.getClass().getFields(),e->e.getName().equals(fieldName));
+			return field!=null?field.get(instance):null;
+		}
+		catch(Exception e){
+			throw new RuntimeException(e);
+		}
+	}
+	
 	public static Object getFieldValue(Object instance,String fieldName) {
 		if(instance==null)return null;
 		try{

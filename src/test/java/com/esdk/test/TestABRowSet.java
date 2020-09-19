@@ -21,8 +21,8 @@ public class TestABRowSet {
 		row2.setValid(true);
 		row2.set("remark","大家好");
 		System.out.println("打印记录集：\n"+rs.toString());
-		esdk.tool.assertEquals("0_SampleRow{\"orderID\":1234567890,\"orderNumber\":\"0001\",\"valid\":true,\"remark\":\"test\"}\n" +
-						"1_SampleRow{\"orderID\":222222222,\"orderNumber\":\"0002\",\"valid\":true,\"remark\":\"大家好\"}",rs.toString());
+		esdk.tool.assertEquals(rs.toString(),"0_SampleRow{\"dictId\":\"1234567890\",\"name\":\"0001\",\"valid\":true,\"remark\":\"test\"}\r\n"
+				+ "1_SampleRow{\"dictId\":\"222222222\",\"name\":\"0002\",\"valid\":true,\"remark\":\"大家好\"}");
 		esdk.tool.printAssertInfo();
 	}
 

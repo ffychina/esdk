@@ -141,6 +141,11 @@ public class EasyArray{
 		return filter(array,0,fn);
 	}
 	
+	public static <T> T filterFirst(T[] array,Predicate<T> fn) {
+		T[] result=filter(array,1,fn);
+		return result.length==0?null:result[0];
+	}
+	
 	public static <T> T[] filter(T[] array,int top, Predicate<T> fn) {
 		ArrayList<T> subList=new ArrayList<T>();
 		if(top<=0)
@@ -205,9 +210,13 @@ public class EasyArray{
 	}
 	
 	/**强制指定输出的数组类型，把数组或对象合并成数组返回，如果全部参数都是数组，应使用concat()*/
-	public static <T>T[] concat(Class<T> cls,Object...args){
-		ArrayList result=toList(args);
-		return (T[])result.toArray((T[])Array.newInstance(cls,result.size()));
+	public static <T>T[] concat(Class<T> cls,Object[] args){
+		ArrayList result=null;
+		if(!esdk.array.isBlank(args)) { 
+			result=toList(args);
+			return (T[])result.toArray((T[])Array.newInstance(cls,result.size()));
+		}else
+			return (T[])Array.newInstance(cls,0);
 	}
 	
 	/**拼接多个数组，返回合并后的数组，不作用重处理，在方法命名上把join区别*/
